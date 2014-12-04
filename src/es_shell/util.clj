@@ -97,3 +97,10 @@
 (defn show
   ([v] (pp/print-table v))
   ([keys v] (pp/print-table keys v)))
+
+
+(defn rename-key [m from-key to-key]
+  (when m
+    (if-let [v (get m from-key)]
+      (-> m (assoc to-key v) (dissoc from-key))
+      m)))
