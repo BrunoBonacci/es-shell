@@ -15,7 +15,7 @@
     (-> shrd
         ->status
         (assoc :shards% (->% (inc replicas) (:active_shards shrd)))
-        (assoc :idx (name idx-name))
+        (assoc :index (name idx-name))
         (assoc :shard num)
         (rename-key :active_shards :active)
         (rename-key :relocating_shards :relocating)
@@ -27,4 +27,5 @@
   (->> idx
        identity
        :shards
-       (map #(->shard idx-name replicas %))))
+       (map #(->shard idx-name replicas %))
+       (map #(update-in % [:shard] (comp read-string name)))))

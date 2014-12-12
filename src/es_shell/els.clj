@@ -36,7 +36,6 @@
            :ip (-> info :network :primary_interface :address)}))))
 
 
-
 (defn health
   "returns the cluster health
    same as:
@@ -64,12 +63,37 @@
 
   "
   [host]
-  (->> (GET (str host "_cluster/health/daily-events-2014-11-26?level=shards"))
+  (->> (GET (str host "_cluster/health?level=shards"))
        :body
        :indices
-       (mapcat ->index)))
+       (mapcat ->index)
+       (sort-by (juxt :index :shard))
+       (meta-show [:index :shard :status :shards% :primary_active :active :init :relocating :unassigned])))
 
 
+
+(defn shards-allocation
+  "returns the cluster shards allocation
+   same as:
+
+      curl -sL -XGET 'http://localhost:9200/_cluster/state/_all?pretty'
+
+  "
+  [host]
+  (let [nodes-map  (index-list-by :id (nodes host))
+        shards     (fn [{node :node :as d}]
+                     (let [{:keys [name host box_type ip]} (nodes-map node)]
+                       (-> d
+                           (assoc :node name :host host :ip ip :box_type box_type)
+                           (update-in [:relocating_node] (comp :name nodes-map)))))
+        index      (fn [idx] (->> idx :shards (mapcat second) (map shards)))]
+    (->> (GET (str host "_cluster/state/_all"))
+         :body
+         :routing_table
+         :indices
+         (mapcat (comp index second))
+         (sort-by (juxt :index :shard (complement :primary)))
+         (meta-show [:index :shard :node :box_type :host :ip :state :primary :relocating_node]))))
 
 
 (comment
@@ -79,11 +103,16 @@
   (show
    (nodes host))
 
+  (nodes-full host)
+
   (health host)
 
   (status host)
 
-  (show (shards-status host))
+  (show
+   (shards-status host))
 
+  (show
+   (shards-allocation host))
 
   )

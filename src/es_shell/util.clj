@@ -94,9 +94,19 @@
                opts))))
 
 
+
+(defn meta-show [cols val]
+  (with-meta val (assoc (meta val) :show-cols cols)))
+
+
 (defn show
-  ([v] (pp/print-table v))
-  ([keys v] (pp/print-table keys v)))
+  ([v]
+     (let [cols (:show-cols (meta v))]
+       (show cols v)))
+  ([keys v]
+     (if keys
+       (pp/print-table keys v)
+       (pp/print-table v))))
 
 
 (defn rename-key [m from-key to-key]
@@ -104,3 +114,7 @@
     (if-let [v (get m from-key)]
       (-> m (assoc to-key v) (dissoc from-key))
       m)))
+
+
+(defn index-list-by [f coll]
+  (into {} (map (juxt f identity) coll)))
