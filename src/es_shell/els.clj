@@ -87,7 +87,7 @@
                            (assoc :node name :host host :ip ip :box_type box_type)
                            (update-in [:relocating_node] (comp :name nodes-map)))))
         index      (fn [idx] (->> idx :shards (mapcat second) (map shards)))]
-    (->> (GET (str host "_cluster/state/_all"))
+    (->> (GET (str host "_cluster/state/routing_table"))
          :body
          :routing_table
          :indices
