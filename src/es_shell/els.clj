@@ -103,6 +103,12 @@
   (show
    (nodes host))
 
+
+  (->> host
+       nodes
+       (sort-by :box_type)
+       show)
+
   (nodes-full host)
 
   (health host)
