@@ -1,14 +1,13 @@
 # es-shell
 
-A Clojure library designed to ... well, that part is up to you.
+A Clojure library to manage an ElasticSearch cluster via REPL.
 
 ## Usage
 
-FIXME
+Work in progress.
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2014 Bruno Bonacci and contributors
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the MIT License.
