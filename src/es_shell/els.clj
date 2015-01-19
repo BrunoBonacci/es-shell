@@ -47,13 +47,14 @@
                              :box_type (-> info :attributes :box_type)
                              :ip (-> info :network :primary_interface :address)})))
         enrich (fn [{:keys [name] :as nodex}]
-                 (when-let [{:keys [heapMax ramMax diskAvail master role]} (get nodes-cat-map name)]
+                 (if-let [{:keys [heapMax ramMax diskAvail master role]} (get nodes-cat-map name)]
                    (-> nodex
                        (assoc :heapMax   heapMax
                               :ramMax    ramMax
                               :diskAvail diskAvail
                               :master    master
-                              :role      role))))]
+                              :role      role))
+                   nodex))]
     (->> nodes-list
          (map enrich)
          (meta-show [:ip :host :name :master :box_type :diskAvail :heapMax :ramMax :role]))))
@@ -118,14 +119,15 @@
                                                                       (update-in [:s] str->int)
                                                                       (update-in [:sto] str->long)
                                                                       (update-in [:d] str->long))))
-                        (map (fn [{:keys [i s n p d sto] :as doc}] [(str i "/" s "/" (= "p" p) "/" n) doc]))
+                        (map (fn [{:keys [i s n p d sto] :as doc}] [(str i "/" s "/" (= "p" p) "/" (clojure.string/split n #" -> " 2)) doc]))
                         (into {}))
         ;; join the two result-set
         enrich (fn [{:keys [index shard node primary] :as shd}]
-                 (when-let [data (get cat-shards (str index "/" shard "/" primary "/" node))]
+                 (if-let [data (get cat-shards (str index "/" shard "/" primary "/" node))]
                    (-> shd
                        (assoc :documents (:d data))
-                       (assoc :shard_size (:sto data)))))]
+                       (assoc :shard_size (:sto data)))
+                   shd))]
     (->> (GET (str host "_cluster/state/routing_table"))
          :body
          :routing_table
@@ -136,10 +138,47 @@
          (meta-show [:index :shard :node :box_type :host :ip :state :primary :documents :shard_size :relocating_node]))))
 
 
+(defn move-shards
+  "moves the listed shards into the specified node name
+
+   same as:
+
+ curl  -s -o /dev/null -XPOST 'http://localhost:9200/_cluster/reroute' -d '{
+    \"commands\" : [ {
+        \"move\" :
+            {
+              \"index\" : \"IndexNameA\", \"shard\" : 0,
+              \"from_node\" : \"NodeNameA\", \"to_node\" : \"destNode\"
+            }
+        },
+        {
+          \"move\" :
+            {
+              \"index\" : \"IndexNameB\", \"shard\" : 1,
+              \"from_node\" : \"NodeNameC\", \"to_node\" : \"destNode\"
+            }
+        }
+    ]
+  }'
 
 
+  "
+  [host dest-node shards]
+  (let [move-spec-fn (fn [{:keys [index shard node]}]
+                       {:move {:index index :shard (str shard)
+                               :from_node node :to_node dest-node}})
+        command {:commands (map move-spec-fn shards)}]
+    (POST (str host "_cluster/reroute") :body command)))
 
-(shards-allocation host)
+
+(defn swap-shards
+  "swaps two shards from two different nodes, useful for rebalancing"
+  [host {index1 :index shard1 :shard node1 :node :as shard1}
+                   {index2 :index shard2 :shard node2 :node :as shard2}]
+  (let [command {:commands
+                 [{:move {:index index1 :shard (str shard1) :from_node node1 :to_node node2}}
+                  {:move {:index index2 :shard (str shard2) :from_node node2 :to_node node1}}]}]
+    (POST (str host "_cluster/reroute") :body command)))
 
 
 (comment
@@ -166,7 +205,5 @@
 
   (show
    (shards-allocation host))
-
-  ;;
 
   )
