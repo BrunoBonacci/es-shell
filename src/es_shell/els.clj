@@ -18,22 +18,45 @@
   "returns a synthetic view of cluster's nodes
    short of:
 
+      curl -s  -XGET 'http://localhost:9200/_cat/nodes?v&h=id,ip,host,master,name,version,diskAvail,heapMax'
       curl -sL -XGET 'http://localhost:9200/_nodes?pretty'
       or
       curl -sL -XGET 'http://localhost:9200/_cat/nodes'
 
   "
   [host]
-  (->>
-   (nodes-full host)
-   :body
-   :nodes
-   (map (fn [[id {:keys [name host] :as info}]]
-          {:id (clojure.core/name id)
-           :name name
-           :host host
-           :box_type (-> info :attributes :box_type)
-           :ip (-> info :network :primary_interface :address)}))))
+  (let [nodes-cat (->> (GET (str host "_cat/nodes?bytes=b&time=h&h=id,ip,host,master,name,version,diskAvail,heapMax,ramMax,uptime,role"))
+                       :body
+                       (map (fn [doc]
+                              (-> doc
+                                  (update-in [:uptime]  read-string)
+                                  (update-in [:heapMax] str->long)
+                                  (update-in [:diskAvail] str->long)
+                                  (update-in [:ramMax] str->long)
+                                  (update-in [:master] (fn [m] (if (= "*" m) :master :slave)))
+                                  (update-in [:role] (fn [r] (case r, "d" :data, "c" :client)))))))
+        nodes-cat-map (into {} (map (juxt :name identity) nodes-cat))
+        nodes-list  (->>
+                     (nodes-full host)
+                     :body
+                     :nodes
+                     (map (fn [[id {:keys [name host] :as info}]]
+                            {:id (clojure.core/name id)
+                             :name name
+                             :host host
+                             :box_type (-> info :attributes :box_type)
+                             :ip (-> info :network :primary_interface :address)})))
+        enrich (fn [{:keys [name] :as nodex}]
+                 (when-let [{:keys [heapMax ramMax diskAvail master role]} (get nodes-cat-map name)]
+                   (-> nodex
+                       (assoc :heapMax   heapMax
+                              :ramMax    ramMax
+                              :diskAvail diskAvail
+                              :master    master
+                              :role      role))))]
+    (->> nodes-list
+         (map enrich)
+         (meta-show [:ip :host :name :master :box_type :diskAvail :heapMax :ramMax :role]))))
 
 
 (defn health
@@ -76,6 +99,7 @@
   "returns the cluster shards allocation
    same as:
 
+      curl -s  -XGET 'http://localhost:9200/_cat/shards?bytes=b&h=i,s,p,st,d,sto,ip,n'
       curl -sL -XGET 'http://localhost:9200/_cluster/state/_all?pretty'
 
   "
@@ -86,14 +110,36 @@
                        (-> d
                            (assoc :node name :host host :ip ip :box_type box_type)
                            (update-in [:relocating_node] (comp :name nodes-map)))))
-        index      (fn [idx] (->> idx :shards (mapcat second) (map shards)))]
+        index      (fn [idx] (->> idx :shards (mapcat second) (map shards)))
+        ;; grab the output of /_cat/shards
+        cat-shards (->> (GET (str host "_cat/shards?bytes=b&h=i,s,p,st,d,sto,ip,n"))
+                        :body
+                        (map (fn [{:keys [i s n p d sto] :as doc}] (-> doc
+                                                                      (update-in [:s] str->int)
+                                                                      (update-in [:sto] str->long)
+                                                                      (update-in [:d] str->long))))
+                        (map (fn [{:keys [i s n p d sto] :as doc}] [(str i "/" s "/" (= "p" p) "/" n) doc]))
+                        (into {}))
+        ;; join the two result-set
+        enrich (fn [{:keys [index shard node primary] :as shd}]
+                 (when-let [data (get cat-shards (str index "/" shard "/" primary "/" node))]
+                   (-> shd
+                       (assoc :documents (:d data))
+                       (assoc :shard_size (:sto data)))))]
     (->> (GET (str host "_cluster/state/routing_table"))
          :body
          :routing_table
          :indices
          (mapcat (comp index second))
+         (map enrich)
          (sort-by (juxt :index :shard (complement :primary)))
-         (meta-show [:index :shard :node :box_type :host :ip :state :primary :relocating_node]))))
+         (meta-show [:index :shard :node :box_type :host :ip :state :primary :documents :shard_size :relocating_node]))))
+
+
+
+
+
+(shards-allocation host)
 
 
 (comment
@@ -120,5 +166,7 @@
 
   (show
    (shards-allocation host))
+
+  ;;
 
   )

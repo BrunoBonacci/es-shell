@@ -118,3 +118,7 @@
 
 (defn index-list-by [f coll]
   (into {} (map (juxt f identity) coll)))
+
+(defn str->long   [^String s] (Long/parseLong s))
+(defn str->int    [^String s] (Integer/parseInt s))
+(defn str->double [^String s] (Double/parseDouble s))
