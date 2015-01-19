@@ -12,7 +12,11 @@
   and on these two nodes it finds respectively the biggest
   and the smallest shard. By swapping them places you'll
   get a cluster which is more balanced in terms of free
-  disk space."
+  disk space. By adding a filter function as parameter
+  :box-filter-cond you can filter which nodes should
+  be considered in the rebalance.
+  it returns the two shards to swap.
+  Use `swap-shards` function to execute the swapping."
   [host & {:keys [box-filter-cond]
            :or   {box-filter-cond identity}}]
   (let [cluster (->> host
