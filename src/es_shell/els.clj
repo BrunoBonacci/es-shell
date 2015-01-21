@@ -119,7 +119,7 @@
                                                                       (update-in [:s] str->int)
                                                                       (update-in [:sto] str->long)
                                                                       (update-in [:d] str->long))))
-                        (map (fn [{:keys [i s n p d sto] :as doc}] [(str i "/" s "/" (= "p" p) "/" (first (clojure.string/split n #" -> " 2))) doc]))
+                        (map (fn [{:keys [i s n p d sto] :as doc}] [(str i "/" s "/" (= "p" p) "/" (first (when n (clojure.string/split n #" -> " 2)))) doc]))
                         (into {}))
         ;; join the two result-set
         enrich (fn [{:keys [index shard node primary] :as shd}]

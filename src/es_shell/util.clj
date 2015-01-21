@@ -37,24 +37,26 @@
         (json/parse-string true))))
 
 
-(defn GET [url & {:as opts}]
+(defn GET [url & {:keys [body] :as opts}]
   (http/get url
             (merge
-             {:socket-timeout 5000
-              :conn-timeout 10000
+             {:socket-timeout 35000
+              :conn-timeout 35000
               :throw-exceptions false
               :accept :json
               :as :json
               :content-type :json
               :coerce :always }
-             opts)))
+             (if (map? body)
+               (assoc (dissoc opts :body) :form-params body)
+               opts))))
 
 
 (defn POST [url & {:keys [body] :as opts}]
   (http/post url
             (merge
-             {:socket-timeout 5000
-              :conn-timeout 10000
+             {:socket-timeout 35000
+              :conn-timeout 35000
               :throw-exceptions false
               :accept :json
               :as :json
@@ -68,8 +70,8 @@
 (defn PUT [url & {:keys [body] :as opts}]
   (http/put url
             (merge
-             {:socket-timeout 5000
-              :conn-timeout 10000
+             {:socket-timeout 35000
+              :conn-timeout 35000
               :throw-exceptions false
               :accept :json
               :as :json
@@ -82,8 +84,8 @@
 (defn DELETE [url & {:keys [body] :as opts}]
   (http/delete url
             (merge
-             {:socket-timeout 5000
-              :conn-timeout 10000
+             {:socket-timeout 35000
+              :conn-timeout 35000
               :throw-exceptions false
               :accept :json
               :as :json
