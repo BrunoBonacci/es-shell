@@ -17,8 +17,9 @@
   be considered in the rebalance.
   it returns the two shards to swap.
   Use `swap-shards` function to execute the swapping."
-  [host & {:keys [box-filter-cond]
-           :or   {box-filter-cond identity}}]
+  [host & {:keys [box-filter-cond index-filter-cond]
+           :or   {box-filter-cond identity
+                  index-filter-cond identity}}]
   (let [cluster (->> host
                      nodes
                      (filter #(= :data (:role %)))
@@ -30,7 +31,7 @@
         light (last  cluster) ;; node with most free space
 
         ;; find the two shards which need to be swapped
-        sh-alloc  (shards-allocation host)
+        sh-alloc  (filter index-filter-cond (shards-allocation host))
         big-shard (->> sh-alloc
                        (filter #(= (:name heavy) (:node %)))
                        (sort-by :shard_size)
