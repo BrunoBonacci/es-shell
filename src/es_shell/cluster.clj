@@ -14,7 +14,9 @@
   get a cluster which is more balanced in terms of free
   disk space. By adding a filter function as parameter
   :box-filter-cond you can filter which nodes should
-  be considered in the rebalance.
+  be considered in the rebalance. Similarly, you can
+  use :index-filter-cond to specify which indicies
+  should be consibered for rebalancing.
   it returns the two shards to swap.
   Use `swap-shards` function to execute the swapping."
   [host & {:keys [box-filter-cond index-filter-cond]
