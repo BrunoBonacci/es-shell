@@ -183,7 +183,8 @@
                        {:move {:index index :shard (str shard)
                                :from_node node :to_node dest-node}})
         command {:commands (map move-spec-fn shards)}]
-    (POST (str host "_cluster/reroute") :body command)))
+    (-> (POST (str host "_cluster/reroute") :body command)
+        (assoc-in [:body :state] :removed-for-brevity))))
 
 
 (defn swap-shards
@@ -193,7 +194,8 @@
   (let [command {:commands
                  [{:move {:index index1 :shard (str shard1) :from_node node1 :to_node node2}}
                   {:move {:index index2 :shard (str shard2) :from_node node2 :to_node node1}}]}]
-    (POST (str host "_cluster/reroute") :body command)))
+    (-> (POST (str host "_cluster/reroute") :body command)
+        (assoc-in [:body :state] :removed-for-brevity))))
 
 
 (comment
