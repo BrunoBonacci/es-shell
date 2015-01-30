@@ -138,6 +138,21 @@
          (meta-show [:index :shard :node :box_type :host :ip :state :primary :documents :shard_size :relocating_node]))))
 
 
+(defn nodes-with-number-of-shards
+  "shows the host information along with the number of allocated shards in each node"
+  [host]
+  (let [num-shards (->> host
+                        shards-allocation
+                        (group-by :node)
+                        (map (fn [[n s]] [n (count s)]))
+                        (into {}))
+        enrich (fn [{:keys [name] :as node}] (assoc node :num-shards (or (num-shards name) 0)))]
+    (->> host
+         nodes
+         (map enrich)
+         (meta-show [:ip :host :name :master :box_type :diskAvail :heapMax :ramMax :role :num-shards]))))
+
+
 (defn move-shards
   "moves the listed shards into the specified node name
 
